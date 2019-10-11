@@ -11,7 +11,6 @@ from shapely.geometry import Point
 import geopandas as gpd
 import pandas as pd
 import argparse
-import json
 import numpy as np
 
 """

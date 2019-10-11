@@ -1,0 +1,4 @@
+pandas == 0.21.0
+shapely == 1.6.4
+geopandas == 0.3.3
+numpy == 1.13.3
