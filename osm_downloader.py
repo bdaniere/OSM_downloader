@@ -68,6 +68,13 @@ def json_result_to_gdf(osm_data):
     """
     logging.info("Transform json result to GeoDataFrame")
 
+    # add key 'tags' in key 'element
+    for index, line in enumerate(osm_data['elements']):
+        for keys in line['tags'].keys():
+            osm_data['elements'][index][keys] = line['tags'][keys]
+
+        del osm_data['elements'][index]['tags']
+
     # Transform json to pandas.DataFrame
     osm_data_df = pd.DataFrame(osm_data['elements'])
     osm_data_gdf = statics_functions.geocode_df(osm_data_df, 'lat', 'lon', 4326)

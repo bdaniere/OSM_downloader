@@ -12,6 +12,7 @@ import geopandas as gpd
 import pandas as pd
 import argparse
 import numpy as np
+import re
 
 """
 Globals variables 
@@ -64,17 +65,11 @@ def formatting_gdf_for_shp_export(gdf, output_path, output_name):
             gdf[gdf_column] = gdf[gdf_column].astype(str)
         if type(gdf[gdf_column][gdf.index.min()]) == pd._libs.tslib.Timestamp:
             gdf[gdf_column] = gdf[gdf_column].astype(str)
-        if type(gdf[gdf_column][gdf.index.min()]) == list:
-            gdf = gdf.drop(columns=[gdf_column])
-            continue
         if len(gdf_column) > 10:
             gdf = gdf.rename(columns={gdf_column: gdf_column[:10]})
             gdf_column = gdf_column[:10]
-
-        # temporary patch for delete the list in the string field
-        for index_element in gdf[gdf_column].index:
-            if type(gdf[gdf_column][index_element]) == list:
-                gdf[gdf_column][index_element] = gdf[gdf_column][index_element][0]
+        if bool(re.search(':', gdf_column)):
+            gdf = gdf.rename(columns={gdf_column: gdf_column.replace(":", "_")})
 
     gdf.to_file(output_path + "/" + output_name + '.shp')
 
