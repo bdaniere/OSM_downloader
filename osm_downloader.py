@@ -8,6 +8,7 @@ Created on thu Oct 11 11:00:00 2019
 """
 
 import pandas as pd
+import geopandas as gpd
 import logging
 import requests
 import os
@@ -75,15 +76,19 @@ def json_result_to_gdf(osm_data):
 
         del osm_data['elements'][index]['tags']
 
-    # Transform json to pandas.DataFrame
+    # Transform json to pandas.DataFrame (with unique geometry type)
     osm_data_df = pd.DataFrame(osm_data['elements'])
-    osm_data_gdf = statics_functions.geocode_df(osm_data_df, 'lat', 'lon', 4326)
+    output_gdf = statics_functions.split_df_by_type(osm_data_df)
 
-    # Check the data quality & create basic index
-    osm_data_gdf = statics_functions.create_index(osm_data_gdf)
-    osm_data_gdf = statics_functions.clean_gdf_by_geometry(osm_data_gdf)
+    # Create Geometry
+    output_gdf['node'] = statics_functions.geocode_df(output_gdf['node'], 'lat', 'lon', 4326)
 
-    return osm_data_gdf
+    for gdf in output_gdf.values():
+        if gdf.empty is False:
+            gdf = statics_functions.create_index(gdf)
+            gdf = statics_functions.clean_gdf_by_geometry(gdf)
+
+    return output_gdf
 
 
 def main(file):
@@ -92,10 +97,12 @@ def main(file):
 
     file_content = read_osm_request(arg.overpass_query)
     osm_data = execute_overpass_request(file_content)
-    gdf_data = json_result_to_gdf(osm_data)
+    gdf_data_dict = json_result_to_gdf(osm_data)
 
     if arg.output is not None:
-        statics_functions.formatting_gdf_for_shp_export(gdf_data, ch_dir + "/output/", arg.output)
+        for gdf_name, gdf in gdf_data_dict.items():
+            if gdf.empty is False:
+                statics_functions.formatting_gdf_for_shp_export(gdf, ch_dir + "/output/", gdf_name)
 
 
 """ PROCESS """

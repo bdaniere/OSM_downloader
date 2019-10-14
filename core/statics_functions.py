@@ -50,7 +50,7 @@ def geocode_df(df, latitude_field, longitude_field, epsg):
     return gdf
 
 
-def formatting_gdf_for_shp_export(gdf, output_path, output_name):
+def formatting_gdf_for_shp_export(gdf, output_path, gdf_name):
     """ Formatting GeoDataFrame for export & export to shp
      :type gdf: GeoDataFrame
      :param output_path: complete path for the shapefile export
@@ -58,12 +58,7 @@ def formatting_gdf_for_shp_export(gdf, output_path, output_name):
      """
     logging.info('formatting & export GeoDataFrame')
 
-    gdf_before = gdf.copy()
-
     for gdf_column in gdf.columns:
-
-        if type(gdf[gdf_column][gdf.index.min()]) in [str]:
-            gdf[gdf_column] = gdf[gdf_column].str.decode('utf-8')
         if type(gdf[gdf_column][gdf.index.min()]) == np.bool_:
             gdf[gdf_column] = gdf[gdf_column].astype(str)
         if type(gdf[gdf_column][gdf.index.min()]) == pd._libs.tslib.Timestamp:
@@ -74,7 +69,7 @@ def formatting_gdf_for_shp_export(gdf, output_path, output_name):
         if bool(re.search(':', gdf_column)):
             gdf = gdf.rename(columns={gdf_column: gdf_column.replace(":", "_")})
 
-    gdf.to_file(output_path + "/" + output_name + '.shp', encoding='utf-8')
+    gdf.to_file("{}/{}.shp".format(output_path, gdf_name), encoding='utf-8')
 
 
 def clean_gdf_by_geometry(gdf):
@@ -115,3 +110,23 @@ def create_index(gdf):
     if gdf.index.isnull().sum() > 0 or gdf.index.is_unique == False:
         gdf.index = range(1, len(gdf) + 1)
     return gdf
+
+
+def split_df_by_type(df):
+    """
+    Created 4 pd.dataFrame by dividing a pd.dataFrame from the type of geometry data
+
+    :param df: input pd.dataFrame (containing the osm_query result)
+    :return: 4 pd.dataFrame with unique geometry type
+    """
+
+    logging.info("Split pandas.DataFrame by geometry type")
+    assert type(df) == pd.DataFrame, "the input variable isn't type pandas.Dataframe"
+
+    df_node = df.loc[df['type'] == 'node']
+    df_way = df.loc[df['type'] == 'way']
+    df_relation = df.loc[df['type'] == 'relation']
+    df_unknown_type = df[~df['type'].isin(['relation', 'node', 'way'])]
+
+    unique_geometry_df = {'node': df_node, 'way': df_way, 'relation': df_relation, 'unknown': df_unknown_type}
+    return unique_geometry_df
