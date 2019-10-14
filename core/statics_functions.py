@@ -40,7 +40,7 @@ def geocode_df(df, latitude_field, longitude_field, epsg):
     :return: GeoDataFrame (epsg : epsg)
     """
 
-    logging.info("Geocode Xls")
+    logging.info("Geocode json result")
 
     geometry = [Point(xy) for xy in zip(df[longitude_field], df[latitude_field])]
     crs = {'init': 'epsg:' + str(epsg)}
@@ -58,9 +58,12 @@ def formatting_gdf_for_shp_export(gdf, output_path, output_name):
      """
     logging.info('formatting & export GeoDataFrame')
 
+    gdf_before = gdf.copy()
+
     for gdf_column in gdf.columns:
+
         if type(gdf[gdf_column][gdf.index.min()]) in [str]:
-            gdf[gdf_column] = gdf[gdf_column].str.decode('utf-8-sig')
+            gdf[gdf_column] = gdf[gdf_column].str.decode('utf-8')
         if type(gdf[gdf_column][gdf.index.min()]) == np.bool_:
             gdf[gdf_column] = gdf[gdf_column].astype(str)
         if type(gdf[gdf_column][gdf.index.min()]) == pd._libs.tslib.Timestamp:
@@ -71,7 +74,7 @@ def formatting_gdf_for_shp_export(gdf, output_path, output_name):
         if bool(re.search(':', gdf_column)):
             gdf = gdf.rename(columns={gdf_column: gdf_column.replace(":", "_")})
 
-    gdf.to_file(output_path + "/" + output_name + '.shp')
+    gdf.to_file(output_path + "/" + output_name + '.shp', encoding='utf-8')
 
 
 def clean_gdf_by_geometry(gdf):
