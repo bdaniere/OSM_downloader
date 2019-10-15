@@ -68,7 +68,7 @@ def json_result_to_df(osm_data):
     :param osm_data: result to the OSM request (json format)
     :return: GeoDataFrame
     """
-    logging.info("Transform json result to GeoDataFrame")
+    logging.info("Transform json result to dict of DataFrame")
 
     # Use list comprehension for isolate geographic object & node object
     osm_data_element = [dict_value for dict_value in osm_data['elements'] if 'tags' in dict_value]
@@ -101,7 +101,7 @@ def json_result_to_df(osm_data):
 
         for osm_node in osm_all_node:
             if osm_node['id'] == node_id:
-                way_element[index_obj]['nodes'][index_node] = osm_node['lat'], osm_node['lon']
+                way_element[index_obj]['nodes'][index_node] = osm_node['lon'], osm_node['lat']
 
     [id_to_coordinate(index_id_node, id_node, index_line) for index_line, content_line in enumerate(way_element) for
      index_id_node, id_node in enumerate(content_line['nodes'])]
@@ -111,14 +111,8 @@ def json_result_to_df(osm_data):
     for geom_type in osm_data_element_by_geom.keys():
         osm_data_element_by_geom[geom_type] = pd.DataFrame(osm_data_element_by_geom[geom_type])
 
+    return osm_data_element_by_geom
 
-    """
-    Continuer sur la gestion des résultats (tranformation des géométrie)
-    ==> core/dataframe/processing
-    """
-
-    import pdb
-    pdb.set_trace()
 
 
 
@@ -126,12 +120,16 @@ def main(file):
     # Read Json parameter with ArgParse argument
     arg = statics_functions.parse_arguments()
 
+    # Read osm query file / execute overpass request / tranform result to DataFrame dict
     file_content = read_osm_request(arg.overpass_query)
     osm_data = execute_overpass_request(file_content)
     gdf_data_dict = json_result_to_df(osm_data)
 
+    toto_obj = dataframe_processing.DfToGdf(gdf_data_dict)
+    toto_obj.main()
+
     if arg.output is not None:
-        for gdf_name, gdf in gdf_data_dict.items():
+        for gdf_name, gdf in toto_obj.df_dict.items():
             if gdf.empty is False:
                 statics_functions.formatting_gdf_for_shp_export(gdf, ch_dir + "/output/", gdf_name)
 

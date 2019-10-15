@@ -7,7 +7,7 @@ Created on thu Oct 14 12:00:00 2019
 
 """
 import logging
-from shapely.geometry import Point
+from shapely.geometry import Point, LineString
 import geopandas as gpd
 import pandas as pd
 import argparse
@@ -27,14 +27,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s -- %(levelname)s -- 
 def geocode_df(df, latitude_field, longitude_field, epsg):
     """
     Transform a DataFrame to GeoDataFrame based on x, y field
-    :type df: DataFrame
+    :type df: DataFrame with node type data
     :type latitude_field: Series
     :type longitude_field: Series
     :type epsg: integer
     :return: GeoDataFrame (epsg : epsg)
     """
 
-    logging.info("Geocode json result")
+    logging.info("Geocode json result - nodes")
 
     geometry = [Point(xy) for xy in zip(df[longitude_field], df[latitude_field])]
     crs = {'init': 'epsg:' + str(epsg)}
@@ -44,23 +44,22 @@ def geocode_df(df, latitude_field, longitude_field, epsg):
     return gdf
 
 
-def geocode_way(df):
-    # create empty DataFrames (with same df columns) for isolate node & line
-    node_df = df.loc[df['types'] == 'nodes']
-    way_df = df.loc[df['types'] == 'way']
+def geocode_way(df, node_column, epsg):
+    """
+    Transform a DataFrame to GeoDataFrame base on 'nodes' fields
+    :param df: DataFrame with way type data
+    :param node_column: Series contain list of tuple (x,y)
+    :param epsg: integer
+    :return:
+    """
+    logging.info("Geocode json result - ways")
 
-    # create lat & lon column for node_df / geocode lat & lon
-    # A voir pour la suite ==> SettingCopyWaringing  // mon premier export est OK mis a part que les geom n'apparaise pas sous Qgis ...
-    node_df['lat'] = node_df['nodes'].apply(lambda x: x[0])
-    node_df['lon'] = node_df['nodes'].apply(lambda x: x[1])
-    node_df = node_df.drop(columns=['nodes'], axis=1)
+    df['geometry'] = df[node_column].apply(lambda x: LineString(x))
+    crs = {'init': 'epsg:' + str(epsg)}
+    df = df.drop(columns=[node_column])
+    gdf = gpd.GeoDataFrame(df, crs=crs, geometry=df.geometry)
 
-    node_gdf = geocode_df(node_df, 'lat', 'lon', 4326)
-
-    # process way_df geometry
-
-    import pdb
-    pdb.set_trace()
+    return gdf
 
 
 class DfToGdf:
@@ -70,19 +69,26 @@ class DfToGdf:
 
         assert type(self.df_dict) == dict, "DfToGdf class input_data isn't dictionary type"
 
-    def main(self):
+    def create_geom_column(self):
+        """
+        Transform json geographic coordinate to Shapely Coordinate (for create gpd.GeoDataFrame)
+        :return:
+        """
+
         # 1 / process "node" type data
         if not self.df_dict['node'].empty:
             self.df_dict['node'] = geocode_df(self.df_dict['node'], 'lat', 'lon', 4326)
 
         # 2 / process 'way' type data
         if not self.df_dict['way'].empty:
-            self.df_dict['way'] = geocode_way(self.df_dict['way'])
+            self.df_dict['way'] = geocode_way(self.df_dict['way'], 'nodes', 4326)
+
+    def main(self):
+
+        self.create_geom_column()
 
         # For each gdf, correct geometry and add index
         for gdf in self.df_dict.values():
             if not gdf.empty:
                 gdf = statics_functions.create_index(gdf)
                 gdf = statics_functions.clean_gdf_by_geometry(gdf)
-
-        return self.df_dict
