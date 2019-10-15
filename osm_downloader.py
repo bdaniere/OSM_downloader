@@ -22,8 +22,11 @@ Globals variables
 logging.basicConfig(level=logging.INFO, format='%(asctime)s -- %(levelname)s -- %(message)s')
 ch_dir = os.getcwd().replace('\\', '/')
 
-# temp variable
-temp_file = "osm_request.txt"
+# max colwidth for pd.DataFrame = 250 characters
+# max colwidth for pd.DataFrame = 250 characters (limit of dbf type)
+pd.set_option('max_colwidth', 250)
+pd.set_option('max_columns', 255)
+pd.set_option('large_repr', 'truncate')
 
 """ Classes / methods / functions """
 
@@ -72,7 +75,8 @@ def json_result_to_df(osm_data):
 
     # Use list comprehension for isolate geographic object & node object
     osm_data_element = [dict_value for dict_value in osm_data['elements'] if 'tags' in dict_value]
-    osm_all_node = [dict_value for dict_value in osm_data['elements'] if dict_value['type'] == 'node']
+    osm_all_node = {dict_value['id']: (dict_value['lon'], dict_value['lat']) for dict_value in osm_data['elements'] if
+                    dict_value['type'] == 'node'}
 
     # import 'tags' key content in each object & drop 'tags' key
     [osm_data_element[index].update(osm_data_element[index]['tags']) for index, value in enumerate(osm_data_element)]
@@ -88,24 +92,8 @@ def json_result_to_df(osm_data):
 
     # replace "nodes" key in osm_data_element_by_geom[way] by geographic coordinates
     way_element = osm_data_element_by_geom['way']
-
-    def id_to_coordinate(index_node, node_id, index_obj):
-        """
-        Function allowing to replace the identifiers of the nodes by their geographical coordinates
-        (contained in osm_all_node list)
-
-        :param index_node: index of actual osm_data_element_by_geom['way'][content_line][nodes]
-        :param node_id: id of actual osm_data_element_by_geom['way'][content_line][nodes]
-        :param index_obj: index of actual osm_data_element_by_geom['way']
-        """
-
-        for osm_node in osm_all_node:
-            if osm_node['id'] == node_id:
-                way_element[index_obj]['nodes'][index_node] = osm_node['lon'], osm_node['lat']
-
-    [id_to_coordinate(index_id_node, id_node, index_line) for index_line, content_line in enumerate(way_element) for
-     index_id_node, id_node in enumerate(content_line['nodes'])]
-
+    for index_line, content_line in enumerate(way_element):
+        content_line['nodes'] = [osm_all_node[id_node] for id_node in content_line['nodes']]
 
     # Transform json to pandas.DataFrame (with unique geometry type)
     for geom_type in osm_data_element_by_geom.keys():
@@ -114,9 +102,7 @@ def json_result_to_df(osm_data):
     return osm_data_element_by_geom
 
 
-
-
-def main(file):
+def main():
     # Read Json parameter with ArgParse argument
     arg = statics_functions.parse_arguments()
 
@@ -125,11 +111,11 @@ def main(file):
     osm_data = execute_overpass_request(file_content)
     gdf_data_dict = json_result_to_df(osm_data)
 
-    toto_obj = dataframe_processing.DfToGdf(gdf_data_dict)
-    toto_obj.main()
+    output_gdf = dataframe_processing.DfToGdf(gdf_data_dict)
+    output_gdf.main()
 
     if arg.output is not None:
-        for gdf_name, gdf in toto_obj.df_dict.items():
+        for gdf_name, gdf in output_gdf.df_dict.items():
             if gdf.empty is False:
                 statics_functions.formatting_gdf_for_shp_export(gdf, ch_dir + "/output/", gdf_name)
 
@@ -137,4 +123,4 @@ def main(file):
 """ PROCESS """
 
 if __name__ == "__main__":
-    main(temp_file)
+    main()

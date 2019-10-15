@@ -19,6 +19,12 @@ Globals variables
 """
 logging.basicConfig(level=logging.INFO, format='%(asctime)s -- %(levelname)s -- %(message)s')
 
+# max colwidth for pd.DataFrame = 250 characters
+# max colwidth for pd.DataFrame = 250 characters (limit of dbf type)
+pd.set_option('max_colwidth', 250)
+pd.set_option('max_columns', 255)
+pd.set_option('large_repr', 'truncate')
+
 """ Classes / methods / functions """
 
 
