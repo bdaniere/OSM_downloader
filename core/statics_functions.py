@@ -112,21 +112,3 @@ def create_index(gdf):
     return gdf
 
 
-def split_df_by_type(df):
-    """
-    Created 4 pd.dataFrame by dividing a pd.dataFrame from the type of geometry data
-
-    :param df: input pd.dataFrame (containing the osm_query result)
-    :return: 4 pd.dataFrame with unique geometry type
-    """
-
-    logging.info("Split pandas.DataFrame by geometry type")
-    assert type(df) == pd.DataFrame, "the input variable isn't type pandas.Dataframe"
-
-    df_node = df.loc[df['type'] == 'node']
-    df_way = df.loc[df['type'] == 'way']
-    df_relation = df.loc[df['type'] == 'relation']
-    df_unknown_type = df[~df['type'].isin(['relation', 'node', 'way'])]
-
-    unique_geometry_df = {'node': df_node, 'way': df_way, 'relation': df_relation, 'unknown': df_unknown_type}
-    return unique_geometry_df

@@ -14,6 +14,7 @@ import requests
 import os
 
 from core import statics_functions
+from core import dataframe_processing
 
 """
 Globals variables 
@@ -61,7 +62,7 @@ def execute_overpass_request(overpass_query):
     return data
 
 
-def json_result_to_gdf(osm_data):
+def json_result_to_df(osm_data):
     """
     Transform the overpass query result (json format) to geopandas.GeoDataFrame
     :param osm_data: result to the OSM request (json format)
@@ -69,26 +70,56 @@ def json_result_to_gdf(osm_data):
     """
     logging.info("Transform json result to GeoDataFrame")
 
-    # add key 'tags' in key 'element
-    for index, line in enumerate(osm_data['elements']):
-        for keys in line['tags'].keys():
-            osm_data['elements'][index][keys] = line['tags'][keys]
+    # Use list comprehension for isolate geographic object & node object
+    osm_data_element = [dict_value for dict_value in osm_data['elements'] if 'tags' in dict_value]
+    osm_all_node = [dict_value for dict_value in osm_data['elements'] if dict_value['type'] == 'node']
 
-        del osm_data['elements'][index]['tags']
+    # import 'tags' key content in each object & drop 'tags' key
+    [osm_data_element[index].update(osm_data_element[index]['tags']) for index, value in enumerate(osm_data_element)]
+    for index, element in enumerate(osm_data_element):
+        del osm_data_element[index]['tags']
+
+    # list all unique value in osm_data_element['type']
+    json_geom_type = {data_obj['type'] for data_obj in osm_data_element}
+    osm_data_element_by_geom = dict()
+    for geom_type in json_geom_type:
+        osm_data_element_by_geom[geom_type] = [data_object for data_object in osm_data_element if
+                                               data_object['type'] == geom_type]
+
+    # replace "nodes" key in osm_data_element_by_geom[way] by geographic coordinates
+    way_element = osm_data_element_by_geom['way']
+
+    def id_to_coordinate(index_node, node_id, index_obj):
+        """
+        Function allowing to replace the identifiers of the nodes by their geographical coordinates
+        (contained in osm_all_node list)
+
+        :param index_node: index of actual osm_data_element_by_geom['way'][content_line][nodes]
+        :param node_id: id of actual osm_data_element_by_geom['way'][content_line][nodes]
+        :param index_obj: index of actual osm_data_element_by_geom['way']
+        """
+
+        for osm_node in osm_all_node:
+            if osm_node['id'] == node_id:
+                way_element[index_obj]['nodes'][index_node] = osm_node['lat'], osm_node['lon']
+
+    [id_to_coordinate(index_id_node, id_node, index_line) for index_line, content_line in enumerate(way_element) for
+     index_id_node, id_node in enumerate(content_line['nodes'])]
+
 
     # Transform json to pandas.DataFrame (with unique geometry type)
-    osm_data_df = pd.DataFrame(osm_data['elements'])
-    output_gdf = statics_functions.split_df_by_type(osm_data_df)
+    for geom_type in osm_data_element_by_geom.keys():
+        osm_data_element_by_geom[geom_type] = pd.DataFrame(osm_data_element_by_geom[geom_type])
 
-    # Create Geometry
-    output_gdf['node'] = statics_functions.geocode_df(output_gdf['node'], 'lat', 'lon', 4326)
 
-    for gdf in output_gdf.values():
-        if gdf.empty is False:
-            gdf = statics_functions.create_index(gdf)
-            gdf = statics_functions.clean_gdf_by_geometry(gdf)
+    """
+    Continuer sur la gestion des résultats (tranformation des géométrie)
+    ==> core/dataframe/processing
+    """
 
-    return output_gdf
+    import pdb
+    pdb.set_trace()
+
 
 
 def main(file):
@@ -97,7 +128,7 @@ def main(file):
 
     file_content = read_osm_request(arg.overpass_query)
     osm_data = execute_overpass_request(file_content)
-    gdf_data_dict = json_result_to_gdf(osm_data)
+    gdf_data_dict = json_result_to_df(osm_data)
 
     if arg.output is not None:
         for gdf_name, gdf in gdf_data_dict.items():
