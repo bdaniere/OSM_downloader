@@ -7,7 +7,7 @@ Created on thu Oct 14 12:00:00 2019
 
 """
 import logging
-from shapely.geometry import Point, LineString
+from shapely.geometry import Point, LineString, Polygon
 import geopandas as gpd
 import pandas as pd
 import argparse
@@ -20,12 +20,6 @@ from core import statics_functions
 Globals variables 
 """
 logging.basicConfig(level=logging.INFO, format='%(asctime)s -- %(levelname)s -- %(message)s')
-# max colwidth for pd.DataFrame = 250 characters
-# max colwidth for pd.DataFrame = 250 characters (limit of dbf type)
-pd.set_option('max_colwidth', 250)
-pd.set_option('max_columns', 255)
-pd.set_option('large_repr', 'truncate')
-
 
 """ Classes / methods / functions """
 
@@ -68,6 +62,24 @@ def geocode_way(df, node_column, epsg):
     return gdf
 
 
+def geocode_polygon(df, node_column, epsg):
+    """
+    Transform a DataFrame to GeoDataFrame base on 'nodes' fields
+    :param df: DataFrame with way type data
+    :param node_column: Series contain list of tuple (x,y)
+    :param epsg: integer
+    :return:
+    """
+    logging.info("Geocode json result - polygon")
+
+    df['geometry'] = df[node_column].apply(lambda x: Polygon(x))
+    crs = {'init': 'epsg:' + str(epsg)}
+    df = df.drop(columns=[node_column])
+    gdf = gpd.GeoDataFrame(df, crs=crs, geometry=df.geometry)
+
+    return gdf
+
+
 class DfToGdf:
 
     def __init__(self, input_dfs):
@@ -88,6 +100,10 @@ class DfToGdf:
         # 2 / process 'way' type data
         if not self.df_dict['way'].empty:
             self.df_dict['way'] = geocode_way(self.df_dict['way'], 'nodes', 4326)
+
+        # 2 / process 'way' type data
+        if not self.df_dict['polygon'].empty:
+            self.df_dict['polygon'] = geocode_polygon(self.df_dict['polygon'], 'nodes', 4326)
 
     def main(self):
 

@@ -19,12 +19,6 @@ Globals variables
 """
 logging.basicConfig(level=logging.INFO, format='%(asctime)s -- %(levelname)s -- %(message)s')
 
-# max colwidth for pd.DataFrame = 250 characters
-# max colwidth for pd.DataFrame = 250 characters (limit of dbf type)
-pd.set_option('max_colwidth', 250)
-pd.set_option('max_columns', 255)
-pd.set_option('large_repr', 'truncate')
-
 """ Classes / methods / functions """
 
 
@@ -56,6 +50,27 @@ def geocode_df(df, latitude_field, longitude_field, epsg):
     return gdf
 
 
+def dbf_max_columns(gdf):
+    """
+    DBF files can not have more than 255 fields: deleting fields that exceed this constraint
+    :param gdf: gpd.GeoDataFrame() with x columns
+    :return gdf: gpd.GeoDataFrame() with x columns (max 255)
+    """
+    # drop empty columns
+    gdf = gdf.dropna(how='all', axis=1)
+
+    if len(gdf.columns) >= 255:
+        logging.warning("-- formatting before export : DBF file constraint:" \
+                        "the column limit is 255 - deletion of the last x columns")
+        output_column = list(gdf.columns[:254])
+        if 'geometry' not in [output_column]:
+            output_column.append('geometry')
+
+        gdf = gdf[output_column]
+
+    return gdf
+
+
 def formatting_gdf_for_shp_export(gdf, output_path, gdf_name):
     """ Formatting GeoDataFrame for export & export to shp
      :type gdf: GeoDataFrame
@@ -63,6 +78,13 @@ def formatting_gdf_for_shp_export(gdf, output_path, gdf_name):
      :param output_name: name for the shapefile export
      """
     logging.info('formatting & export GeoDataFrame')
+
+    gdf = dbf_max_columns(gdf)
+
+    # shp constraint : max length of string value = 245
+    geometry = gdf.geometry.copy()
+    gdf = gdf.astype(str).apply(lambda x: x.str[:254])
+    gdf.geometry = geometry
 
     for gdf_column in gdf.columns:
         if type(gdf[gdf_column][gdf.index.min()]) == np.bool_:
@@ -116,5 +138,3 @@ def create_index(gdf):
     if gdf.index.isnull().sum() > 0 or gdf.index.is_unique == False:
         gdf.index = range(1, len(gdf) + 1)
     return gdf
-
-

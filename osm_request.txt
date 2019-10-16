@@ -1,5 +1,5 @@
 [out:json];
-way["railway"="rail"]
+way["building"="yes"]
   (53.2987342,-6.3870259,53.4105416,-6.1148829); 
 (._;>;);
 out;
