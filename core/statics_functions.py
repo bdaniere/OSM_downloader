@@ -83,14 +83,14 @@ def formatting_gdf_for_shp_export(gdf, output_path, gdf_name):
 
     # shp constraint : max length of string value = 245
     geometry = gdf.geometry.copy()
-    gdf = gdf.astype(str).apply(lambda x: x.str[:254])
+    gdf = gdf.astype(str).apply(lambda x: x.str[:253])
     gdf.geometry = geometry
 
     for gdf_column in gdf.columns:
-        if type(gdf[gdf_column][gdf.index.min()]) == np.bool_:
-            gdf[gdf_column] = gdf[gdf_column].astype(str)
-        if type(gdf[gdf_column][gdf.index.min()]) == pd._libs.tslib.Timestamp:
-            gdf[gdf_column] = gdf[gdf_column].astype(str)
+        # if type(gdf[gdf_column][gdf.index.min()]) == np.bool_:
+        #     gdf[gdf_column] = gdf[gdf_column].astype(str)
+        # if type(gdf[gdf_column][gdf.index.min()]) == pd._libs.tslib.Timestamp:
+        #     gdf[gdf_column] = gdf[gdf_column].astype(str)
         if len(gdf_column) > 10:
             gdf = gdf.rename(columns={gdf_column: gdf_column[:10]})
             gdf_column = gdf_column[:10]

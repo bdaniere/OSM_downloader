@@ -31,17 +31,42 @@ def split_initial_data(osm_data):
     """
     Use list comprehension for isolate geographic object (with alpha-numeric attribute)
      & node object (coordonate only)
+     & relation object
 
     :return osm_data_element: list of dict containing data from the overpass request
     :return osm_all_node: list of dict containing all node data from the overpass request (geographical coordinates)
     """
     logging.info(" -- json to df -- split initial data ")
 
-    osm_data_element = [dict_value for dict_value in osm_data['elements'] if 'tags' in dict_value]
+    osm_data_element = [dict_value for dict_value in osm_data['elements'] if
+                        ('tags' in dict_value and dict_value['type'] in ['way', 'node'])]
     osm_all_node = {dict_value['id']: (dict_value['lon'], dict_value['lat']) for dict_value in
                     osm_data['elements'] if dict_value['type'] == 'node'}
 
+    osm_data_relation = [dict_value for dict_value in osm_data['elements'] if dict_value['type'] == 'relation']
+
     return osm_data_element, osm_all_node
+
+
+def rename_key_tag_to_geom_type(osm_data_element):
+    """
+    Rename the key 'type' by 'geom_type'
+    :param osm_data_element: list of dict containing data from the overpass request
+    :return osm_data_element: list of dict containing data from the overpass request (after rename operation)
+    """
+
+    logging.info(" -- json to df -- split initial data ")
+
+    def rename_type_key(line):
+        """
+        sub fucntion for rename key in dict
+        """
+        line['geom_type'] = line['type']
+        del line['type']
+        return line
+
+    osm_data_element = [rename_type_key(osm_element) for osm_element in osm_data_element]
+    return osm_data_element
 
 
 def extract_key_tags(osm_data_element):
@@ -63,21 +88,21 @@ def extract_key_tags(osm_data_element):
 
 def split_data_by_geom_type(osm_data_element):
     """
-    List all unique value in osm_data_element['type']
+    List all unique value in osm_data_element['geom_type']
 
     :param osm_data_element: list of dict containing data from the overpass request
-                            (with each 'tags' sub-keys in first level of dictionar)
+                            (with each 'tags' sub-keys in first level of dictionary)
     :return osm_data_element_by_geom: dictionary with osm_data_element, separated by geometry type
                                     ( {geom_type : data} )
     """
     logging.info(" -- json to df -- data separation based on geom type ")
 
-    json_geom_type = {data_obj['type'] for data_obj in osm_data_element}
+    json_geom_type = {data_obj['geom_type'] for data_obj in osm_data_element}
     osm_data_element_by_geom = dict()
 
     for geom_type in json_geom_type:
         osm_data_element_by_geom[geom_type] = [data_object for data_object in osm_data_element if
-                                               data_object['type'] == geom_type]
+                                               data_object['geom_type'] == geom_type]
 
     return osm_data_element_by_geom
 
@@ -96,7 +121,7 @@ def formatting_way_geom_type(osm_data_element_by_geom, osm_all_node):
     for index_line, content_line in enumerate(osm_data_element_by_geom['way']):
         content_line['nodes'] = [osm_all_node[id_node] for id_node in content_line['nodes']]
         if content_line['nodes'][0] == content_line['nodes'][-1]:
-            osm_data_element_by_geom['way'][index_line]['type'] = 'polygon'
+            osm_data_element_by_geom['way'][index_line]['geom_type'] = 'polygon'
 
     return osm_data_element_by_geom['way']
 
@@ -111,7 +136,7 @@ def split_way_and_polygon(osm_data_element_by_geom):
     """
     for geom_type in ['polygon', 'way']:
         osm_data_element_by_geom[geom_type] = [data_object for data_object in osm_data_element_by_geom['way'] if
-                                               data_object['type'] == geom_type]
+                                               data_object['geom_type'] == geom_type]
 
     return osm_data_element_by_geom
 
@@ -140,6 +165,7 @@ def main(osm_data):
     logging.info("Transform json result to dict of DataFrame")
 
     osm_data_element, osm_all_node = split_initial_data(osm_data)
+    osm_data_element = rename_key_tag_to_geom_type(osm_data_element)
     osm_data_element = extract_key_tags(osm_data_element)
     osm_data_element_by_geom = split_data_by_geom_type(osm_data_element)
     osm_data_element_by_geom['way'] = formatting_way_geom_type(osm_data_element_by_geom, osm_all_node)

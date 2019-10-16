@@ -112,5 +112,9 @@ class DfToGdf:
         # For each gdf, correct geometry and add index
         for gdf in self.df_dict.values():
             if not gdf.empty:
-                gdf = statics_functions.create_index(gdf)
-                gdf = statics_functions.clean_gdf_by_geometry(gdf)
+                try:
+                    gdf = statics_functions.create_index(gdf)
+                    gdf = statics_functions.clean_gdf_by_geometry(gdf)
+                except :
+                    import pdb
+                    pdb.set_trace()
