@@ -26,6 +26,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("overpass_query", help="Input file contain overpass querry")
     parser.add_argument("-o", "--output", help="shapefile output path ")
+    parser.add_argument("-t", "--territory", help="territory to use for process")
 
     return parser.parse_args()
 
